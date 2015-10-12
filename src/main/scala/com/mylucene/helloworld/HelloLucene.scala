@@ -2,6 +2,7 @@ package com.mylucene.helloworld
 
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
+
 import com.mylucene.utils.Utils
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
@@ -9,15 +10,8 @@ import org.apache.lucene.document._
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
 import org.apache.lucene.queryparser.classic.{MultiFieldQueryParser, QueryParser}
-import org.apache.lucene.search.{ScoreDoc, IndexSearcher, Query, TopDocs}
-import org.apache.lucene.store.{IOContext, RAMDirectory, Directory, FSDirectory}
-
-/**
- * Created by xin on 2015/10/9.
- */
-class HelloLucene {
-
-}
+import org.apache.lucene.search.{IndexSearcher, Query, ScoreDoc, TopDocs}
+import org.apache.lucene.store.{Directory, FSDirectory, IOContext, RAMDirectory}
 
 object HelloLucene {
   val docsPath = "D:\\study\\IdeaProject\\LuceneStudy\\luceneDataSource\\"
@@ -93,6 +87,48 @@ object HelloLucene {
     fsIndexWriter.close()
   }
 
+  def doPageingSearch(searcher: IndexSearcher, query: Query, hitsPerPage: Int, raw: Boolean = false) = {
+    // Collect enough docs to show 2 pages
+    val results: TopDocs = searcher.search(query, 2 * hitsPerPage)
+    val hits: Array[ScoreDoc] = results.scoreDocs
+    val numTotalHits: Int = results.totalHits
+    println(s"总共有【${numTotalHits}】条匹配结果")
+    val start = 0
+    var end = Math.min(numTotalHits, hitsPerPage)
+
+    end = Math.min(numTotalHits, start + hitsPerPage)
+    for (i <- start until end) {
+      if (raw) {
+        println(s"docID:${hits(i).doc};score:${hits(i).score}")
+      } else {
+        val doc: Document = searcher.doc(hits(i).doc)
+        val path = doc.get("path")
+        if (path != null) {
+          printDocumentInfo(doc)
+        } else {
+          println(s"${start + 1}. no path for this document")
+        }
+      }
+    }
+  }
+
+  private def printDocumentInfo(doc: Document) = {
+    /*
+      获取name属性的值的两种方法：
+      1、doc.getField("name").stringValue()
+      2、doc.get("name")
+     */
+    println("name = " + doc.get("name"))
+    println("content = " + doc.get("content"))
+    println("size = " + doc.get("size"))
+    println("path = " + doc.get("path"))
+    println("-----------------------------------------")
+  }
+
+  def main(args: Array[String]) {
+    search()
+  }
+
   //进行搜索
   def search() = {
     //1、把要搜索的文本解析为Query
@@ -121,70 +157,5 @@ object HelloLucene {
     //方式二
     results.scoreDocs.foreach(scoreDoc => printDocumentInfo(searcher.doc(scoreDoc.doc)))
   }
-
-  def doPageingSearch(searcher: IndexSearcher, query: Query, hitsPerPage: Int, raw: Boolean = false) = {
-    // Collect enough docs to show 2 pages
-    val results: TopDocs = searcher.search(query, 2 * hitsPerPage)
-    val hits: Array[ScoreDoc] = results.scoreDocs
-    val numTotalHits: Int = results.totalHits
-    println(s"总共有【${numTotalHits}】条匹配结果")
-    val start = 0
-    var end = Math.min(numTotalHits, hitsPerPage)
-
-    end = Math.min(numTotalHits, start + hitsPerPage)
-    start until end foreach { i =>
-      if (raw) println(s"docID:${hits(i).doc};score:${hits(i).score}")
-      else {
-        val doc: Document = searcher.doc(hits(i).doc)
-        val path = doc.get("path")
-        if (path != null) printDocumentInfo(doc)
-        else println(s"${start + 1}. no path for this document")
-      }
-    }
-
-    /*    for (i <- start until end) {
-          if (raw) {
-            println(s"docID:${hits(i).doc};score:${hits(i).score}")
-          } else {
-            val doc: Document = searcher.doc(hits(i).doc)
-            val path = doc.get("path")
-            if (path != null) {
-              printDocumentInfo(doc)
-            } else {
-              println(s"${start + 1}. no path for this document")
-            }
-
-          }
-        }*/
-
-
-    /*     val line = Console.readLine
-         println(line)*/
-
-
-  }
-
-  private def printDocumentInfo(doc: Document) = {
-    /*
-      获取name属性的值的两种方法：
-      1、doc.getField("name").stringValue()
-      2、doc.get("name")
-     */
-    println("name = " + doc.get("name"))
-    println("content = " + doc.get("content"))
-    println("size = " + doc.get("size"))
-    println("path = " + doc.get("path"))
-    println("-----------------------------------------")
-  }
-
-  def main(args: Array[String]) {
-    search()
-  }
 }
 
-/*
-object Main{
-  def main(args: Array[String]) {
-    new HelloLucene().search()
-  }
-}*/

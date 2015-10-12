@@ -1,8 +1,5 @@
 package com.others
 
-/**
- * Created by xin on 2015/10/11.
- */
 class HowToBreak {
   //Use some construct that includes a conditional that you test.
   def howToBreak1 = {

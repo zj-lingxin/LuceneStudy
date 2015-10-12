@@ -45,7 +45,5 @@ class AnalyzerTest {
     }
     result
   }
-
-
 }
 
