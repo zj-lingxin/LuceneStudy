@@ -92,8 +92,8 @@ object HelloLucene {
     // Collect enough docs to show 2 pages
     val results: TopDocs = searcher.search(query, 2 * hitsPerPage)
     val hits: Array[ScoreDoc] = results.scoreDocs
-    val numTotalHits: Int = results.totalHits
-    println(s"总共有【${numTotalHits}】条匹配结果")
+    val numTotalHits = results.totalHits
+    println(s"总共有【$numTotalHits】条匹配结果")
     val start = 0
     val end = Math.min(numTotalHits, start + hitsPerPage)
     for (i <- start until end) {
@@ -146,9 +146,12 @@ object HelloLucene {
 
       //使用高亮器，对关键字进行高亮，并且生成摘要，打印出来
       val fragmentSize = 50 //摘要长度
-      var hc = getHighlightedField(query, analyzer, "content", doc.get("content"), fragmentSize)
-      if (hc == null)
-        hc = doc.getFields("content").toString.substring(0, fragmentSize)
+      val content = doc.get("content")
+      var hc = getHighlightedField(query, analyzer, "content", content, fragmentSize)
+      if (hc == null) {
+        val endIndex = Math.min(content.length, fragmentSize)
+        hc = doc.getFields("content").toString.substring(0, endIndex)
+      }
       doc.add(new TextField("abstract", hc, Field.Store.NO))
 
       //打印文档
@@ -170,7 +173,7 @@ object HelloLucene {
 
   def main(args: Array[String]) {
     //createIndex
-    search
+    search()
   }
 }
 
