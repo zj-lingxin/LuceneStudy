@@ -3,15 +3,11 @@ package com.mylucene.AnalyzerTest
 import java.io.StringReader
 
 import org.apache.lucene.analysis.cjk.CJKAnalyzer
-import org.apache.lucene.analysis.core.{StopAnalyzer, KeywordAnalyzer, SimpleAnalyzer}
-import org.apache.lucene.analysis.tokenattributes.{CharTermAttribute, KeywordAttribute}
-import org.apache.lucene.analysis.{TokenStream, Analyzer}
+import org.apache.lucene.analysis.core.{KeywordAnalyzer, SimpleAnalyzer, StopAnalyzer}
 import org.apache.lucene.analysis.standard.StandardAnalyzer
-import org.apache.lucene.search.BoostAttribute
-import org.apache.lucene.search.highlight.TokenSources
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
+import org.apache.lucene.analysis.{Analyzer, TokenStream}
 import org.junit.Test
-
-import scala.collection.mutable.ArrayBuffer
 
 /**
  * Created by lingx on 2015/10/10.
@@ -19,7 +15,8 @@ import scala.collection.mutable.ArrayBuffer
 class AnalyzerTest {
   val text = "IndexWriter addDocument's a javadoc.txt 方法动画风格和规范化的发个电话官方发个电话g"
   val text2 = "我们是中国人"
-  val analyzer = new StandardAnalyzer() //单字分词
+  val analyzer = new StandardAnalyzer()
+  //单字分词
   val analyzer2 = new SimpleAnalyzer()
   val analyzer3 = new KeywordAnalyzer()
   val analyzer4 = new StopAnalyzer()

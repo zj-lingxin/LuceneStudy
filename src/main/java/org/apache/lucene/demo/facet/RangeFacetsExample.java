@@ -17,19 +17,12 @@ package org.apache.lucene.demo.facet;
  * limitations under the License.
  */
 
-import java.io.Closeable;
-import java.io.IOException;
-
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.facet.DrillDownQuery;
-import org.apache.lucene.facet.FacetResult;
-import org.apache.lucene.facet.Facets;
-import org.apache.lucene.facet.FacetsCollector;
-import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.*;
 import org.apache.lucene.facet.range.LongRange;
 import org.apache.lucene.facet.range.LongRangeFacetCounts;
 import org.apache.lucene.index.DirectoryReader;
@@ -43,97 +36,113 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 
-/** Shows simple usage of dynamic range faceting. */
+import java.io.Closeable;
+import java.io.IOException;
+
+/**
+ * Shows simple usage of dynamic range faceting.
+ */
 public class RangeFacetsExample implements Closeable {
 
-  private final Directory indexDir = new RAMDirectory();
-  private IndexSearcher searcher;
-  private final long nowSec = System.currentTimeMillis();
+    private final Directory indexDir = new RAMDirectory();
+    private IndexSearcher searcher;
+    private final long nowSec = System.currentTimeMillis();
 
-  final LongRange PAST_HOUR = new LongRange("Past hour", nowSec-3600, true, nowSec, true);
-  final LongRange PAST_SIX_HOURS = new LongRange("Past six hours", nowSec-6*3600, true, nowSec, true);
-  final LongRange PAST_DAY = new LongRange("Past day", nowSec-24*3600, true, nowSec, true);
+    final LongRange PAST_HOUR = new LongRange("Past hour", nowSec - 3600, true, nowSec, true);
+    final LongRange PAST_SIX_HOURS = new LongRange("Past six hours", nowSec - 6 * 3600, true, nowSec, true);
+    final LongRange PAST_DAY = new LongRange("Past day", nowSec - 24 * 3600, true, nowSec, true);
 
-  /** Empty constructor */
-  public RangeFacetsExample() {}
-  
-  /** Build the example index. */
-  public void index() throws IOException {
-    IndexWriter indexWriter = new IndexWriter(indexDir, new IndexWriterConfig(
-        new WhitespaceAnalyzer()).setOpenMode(OpenMode.CREATE));
-
-    // Add documents with a fake timestamp, 1000 sec before
-    // "now", 2000 sec before "now", ...:
-    for(int i=0;i<100;i++) {
-      Document doc = new Document();
-      long then = nowSec - i * 1000;
-      // Add as doc values field, so we can compute range facets:
-      doc.add(new NumericDocValuesField("timestamp", then));
-      // Add as numeric field so we can drill-down:
-      doc.add(new LongField("timestamp", then, Field.Store.NO));
-      indexWriter.addDocument(doc);
+    /**
+     * Empty constructor
+     */
+    public RangeFacetsExample() {
     }
 
-    // Open near-real-time searcher
-    searcher = new IndexSearcher(DirectoryReader.open(indexWriter, true));
-    indexWriter.close();
-  }
+    /**
+     * Build the example index.
+     */
+    public void index() throws IOException {
+        IndexWriter indexWriter = new IndexWriter(indexDir, new IndexWriterConfig(
+                new WhitespaceAnalyzer()).setOpenMode(OpenMode.CREATE));
 
-  private FacetsConfig getConfig() {
-    return new FacetsConfig();
-  }
+        // Add documents with a fake timestamp, 1000 sec before
+        // "now", 2000 sec before "now", ...:
+        for (int i = 0; i < 100; i++) {
+            Document doc = new Document();
+            long then = nowSec - i * 1000;
+            // Add as doc values field, so we can compute range facets:
+            doc.add(new NumericDocValuesField("timestamp", then));
+            // Add as numeric field so we can drill-down:
+            doc.add(new LongField("timestamp", then, Field.Store.NO));
+            indexWriter.addDocument(doc);
+        }
 
-  /** User runs a query and counts facets. */
-  public FacetResult search() throws IOException {
+        // Open near-real-time searcher
+        searcher = new IndexSearcher(DirectoryReader.open(indexWriter, true));
+        indexWriter.close();
+    }
 
-    // Aggregates the facet counts
-    FacetsCollector fc = new FacetsCollector();
+    private FacetsConfig getConfig() {
+        return new FacetsConfig();
+    }
 
-    // MatchAllDocsQuery is for "browsing" (counts facets
-    // for all non-deleted docs in the index); normally
-    // you'd use a "normal" query:
-    FacetsCollector.search(searcher, new MatchAllDocsQuery(), 10, fc);
+    /**
+     * User runs a query and counts facets.
+     */
+    public FacetResult search() throws IOException {
 
-    Facets facets = new LongRangeFacetCounts("timestamp", fc,
-                                             PAST_HOUR,
-                                             PAST_SIX_HOURS,
-                                             PAST_DAY);
-    return facets.getTopChildren(10, "timestamp");
-  }
-  
-  /** User drills down on the specified range. */
-  public TopDocs drillDown(LongRange range) throws IOException {
+        // Aggregates the facet counts
+        FacetsCollector fc = new FacetsCollector();
 
-    // Passing no baseQuery means we drill down on all
-    // documents ("browse only"):
-    DrillDownQuery q = new DrillDownQuery(getConfig());
+        // MatchAllDocsQuery is for "browsing" (counts facets
+        // for all non-deleted docs in the index); normally
+        // you'd use a "normal" query:
+        FacetsCollector.search(searcher, new MatchAllDocsQuery(), 10, fc);
 
-    q.add("timestamp", NumericRangeQuery.newLongRange("timestamp", range.min, range.max, range.minInclusive, range.maxInclusive));
+        Facets facets = new LongRangeFacetCounts("timestamp", fc,
+                PAST_HOUR,
+                PAST_SIX_HOURS,
+                PAST_DAY);
+        return facets.getTopChildren(10, "timestamp");
+    }
 
-    return searcher.search(q, 10);
-  }
+    /**
+     * User drills down on the specified range.
+     */
+    public TopDocs drillDown(LongRange range) throws IOException {
 
-  @Override
-  public void close() throws IOException {
-    searcher.getIndexReader().close();
-    indexDir.close();
-  }
+        // Passing no baseQuery means we drill down on all
+        // documents ("browse only"):
+        DrillDownQuery q = new DrillDownQuery(getConfig());
 
-  /** Runs the search and drill-down examples and prints the results. */
-  public static void main(String[] args) throws Exception {
-    RangeFacetsExample example = new RangeFacetsExample();
-    example.index();
+        q.add("timestamp", NumericRangeQuery.newLongRange("timestamp", range.min, range.max, range.minInclusive, range.maxInclusive));
 
-    System.out.println("Facet counting example:");
-    System.out.println("-----------------------");
-    System.out.println(example.search());
+        return searcher.search(q, 10);
+    }
 
-    System.out.println("\n");
-    System.out.println("Facet drill-down example (timestamp/Past six hours):");
-    System.out.println("---------------------------------------------");
-    TopDocs hits = example.drillDown(example.PAST_SIX_HOURS);
-    System.out.println(hits.totalHits + " totalHits");
+    @Override
+    public void close() throws IOException {
+        searcher.getIndexReader().close();
+        indexDir.close();
+    }
 
-    example.close();
-  }
+    /**
+     * Runs the search and drill-down examples and prints the results.
+     */
+    public static void main(String[] args) throws Exception {
+        RangeFacetsExample example = new RangeFacetsExample();
+        example.index();
+
+        System.out.println("Facet counting example:");
+        System.out.println("-----------------------");
+        System.out.println(example.search());
+
+        System.out.println("\n");
+        System.out.println("Facet drill-down example (timestamp/Past six hours):");
+        System.out.println("---------------------------------------------");
+        TopDocs hits = example.drillDown(example.PAST_SIX_HOURS);
+        System.out.println(hits.totalHits + " totalHits");
+
+        example.close();
+    }
 }

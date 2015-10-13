@@ -1,3 +1,4 @@
-spark
-scala
-java python
+Get Spark from the downloads page of the project website. This documentation is for Spark version 1.5.1. Spark uses Hadoos client libraries for HDFS and YARN. Downloads are pre-packaged for a handful of popular Hadoop versions. Users can also download a Hadoop free binary and run Spark with any Hadoop version by augmenting Sparks classpath.
+If ud like to build Spark from source, visit Building Spark.
+Spark runs on both Windows and UNIX-like systems (e.g. Linux, Mac OS). Its easy to run locally on one machine  all you need is to have java installed on your system PATH, or the JAVA_HOME environment variable pointing to a Java installation.
+Spark runs on Java 7+, Python 2.6+ and R 3.1+. For the Scala API, Spark 1.5.1 uses Scala 2.10. You will need to use a compatible Scala version (2.10.x).

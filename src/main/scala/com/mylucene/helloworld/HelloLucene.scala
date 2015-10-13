@@ -10,12 +10,13 @@ import org.apache.lucene.document._
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
 import org.apache.lucene.queryparser.classic.{MultiFieldQueryParser, QueryParser}
+import org.apache.lucene.search.highlight._
 import org.apache.lucene.search.{IndexSearcher, Query, ScoreDoc, TopDocs}
 import org.apache.lucene.store.{Directory, FSDirectory, IOContext, RAMDirectory}
 
 object HelloLucene {
-  val docsPath = "D:\\study\\IdeaProject\\LuceneStudy\\luceneDataSource\\"
-  val indexPath = "D:\\study\\IdeaProject\\LuceneStudy\\luceneIndex\\"
+  val docsPath = "E:\\study\\workspace\\LuceneStudy\\luceneDataSource\\"
+  val indexPath = "E:\\study\\workspace\\LuceneStudy\\luceneIndex\\"
 
   //创建分词器
   val analyzer: Analyzer = new StandardAnalyzer()
@@ -41,9 +42,7 @@ object HelloLucene {
     if (Files.isDirectory(path)) {
       Files.walkFileTree(path, new SimpleFileVisitor[Path]() {
         override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-          try {
-            indexDoc(writer, file)
-          }
+          indexDoc(writer, file)
           FileVisitResult.CONTINUE
         }
       })
@@ -61,6 +60,7 @@ object HelloLucene {
     doc.add(new LongField("size", file.length(), Field.Store.YES))
     //StringField是不分词直接索引的(把整个值当成一个关键字)
     doc.add(new StringField("path", file.getAbsolutePath, Field.Store.YES))
+
     //通过IndexWriter添加Document到索引库中
     writer.addDocument(doc)
   }
@@ -87,6 +87,7 @@ object HelloLucene {
     fsIndexWriter.close()
   }
 
+  //详细的分页看官网的Demo
   def doPageingSearch(searcher: IndexSearcher, query: Query, hitsPerPage: Int, raw: Boolean = false) = {
     // Collect enough docs to show 2 pages
     val results: TopDocs = searcher.search(query, 2 * hitsPerPage)
@@ -94,9 +95,7 @@ object HelloLucene {
     val numTotalHits: Int = results.totalHits
     println(s"总共有【${numTotalHits}】条匹配结果")
     val start = 0
-    var end = Math.min(numTotalHits, hitsPerPage)
-
-    end = Math.min(numTotalHits, start + hitsPerPage)
+    val end = Math.min(numTotalHits, start + hitsPerPage)
     for (i <- start until end) {
       if (raw) {
         println(s"docID:${hits(i).doc};score:${hits(i).score}")
@@ -112,21 +111,13 @@ object HelloLucene {
     }
   }
 
-  private def printDocumentInfo(doc: Document) = {
-    /*
-      获取name属性的值的两种方法：
-      1、doc.getField("name").stringValue()
-      2、doc.get("name")
-     */
+  private def printDocumentInfo(doc: Document): Unit = {
     println("name = " + doc.get("name"))
     println("content = " + doc.get("content"))
     println("size = " + doc.get("size"))
     println("path = " + doc.get("path"))
+    println("abstract = " + doc.get("abstract"))
     println("-----------------------------------------")
-  }
-
-  def main(args: Array[String]) {
-    search()
   }
 
   //进行搜索
@@ -145,17 +136,41 @@ object HelloLucene {
   def simpleSerarch(searcher: IndexSearcher, query: Query) = {
     //2、进行查询
     val results: TopDocs = searcher.search(query, 1000)
-    println(s"总共有【${results.totalHits}】条匹配结果")
+    val numTotalHits = results.totalHits
+    println(s"总共有【$numTotalHits】条匹配结果")
+
     //3、打印结果
-    //方式一
-    /*
     for (scoreDoc <- results.scoreDocs) {
       val docID = scoreDoc.doc //文档内部编号
       val doc: Document = searcher.doc(docID) //根据文档编号取出相应的文档
+
+      //使用高亮器，对关键字进行高亮，并且生成摘要，打印出来
+      val fragmentSize = 50 //摘要长度
+      var hc = getHighlightedField(query, analyzer, "content", doc.get("content"), fragmentSize)
+      if (hc == null)
+        hc = doc.getFields("content").toString.substring(0, fragmentSize)
+      doc.add(new TextField("abstract", hc, Field.Store.NO))
+
+      //打印文档
       printDocumentInfo(doc)
-    }*/
-    //方式二
-    results.scoreDocs.foreach(scoreDoc => printDocumentInfo(searcher.doc(scoreDoc.doc)))
+    }
+  }
+
+  //高亮器可以截取一段文本(生成摘要),并且让关键字高亮显示(通过指定前缀与后缀实现，即html的标签)
+  //摘要是指关键字出现最频繁处的一段文字
+  private def getHighlightedField(query: Query, analyzer: Analyzer, fieldName: String, fieldValue: String, fragmentSize: Int = Int.MaxValue): String = {
+    val formatter: Formatter = new SimpleHTMLFormatter("<font color='red'>", "</font>")
+    val queryScorer: QueryScorer = new QueryScorer(query)
+    val highlighter: Highlighter = new Highlighter(formatter, queryScorer)
+    highlighter.setTextFragmenter(new SimpleSpanFragmenter(queryScorer, fragmentSize)) //设置"摘要"的字符个数是50个
+    highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE)
+    //返回高亮后的结果，如果当前属性值中没有出现该关键字，则返回null
+    highlighter.getBestFragment(analyzer, fieldName, fieldValue) //例如 fieldName = content, fieldValue = doc.get("content")
+  }
+
+  def main(args: Array[String]) {
+    //createIndex
+    search
   }
 }
 
